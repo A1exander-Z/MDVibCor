@@ -159,9 +159,10 @@ void PairGroup::Statistics() {
 
 double PairGroup::GetProb(unsigned int i) {
     if (i < P_NO) return(P[i]);
+	else return(0);
 }
 
-double PairGroup::SetProb(unsigned int i, double new_P) {
+void PairGroup::SetProb(unsigned int i, double new_P) {
     if (i < P_NO) P[i] = new_P;
 }
 

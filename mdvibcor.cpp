@@ -58,11 +58,11 @@ void PrintUsage() {
 // Main program starts here
 int main(int argc, const char* argv[]) {
     clock_t st_time = clock();
-    cout << "MDVibCor version 0.7.0, copyright (C) 2008-2013 Alexander Zakharov";
+    cout << "MDVibCor version 0.7.1, copyright (C) 2008-2013 Alexander Zakharov";
     cout << endl << endl;
     double tolerance = 0.1; // Default maximum allowed difference between
                             // symmetrically equivalent distances (in %)
-    double skip = 2000;     // Default number of initial MD steps to skip
+    int skip = 2000;        // Default number of initial MD steps to skip
     bool debug = false;     // Should I print additional output for debugging?
     bool print_P = false;   // Should I print probability distributions?
     // Starting command line parsing
@@ -159,6 +159,10 @@ int main(int argc, const char* argv[]) {
     // Starting to read and process parameters, trajectory files, etc.
     Simulation sim;
     sim.SetTolerance(tolerance);
+    // Use two-digit exponent format under Windows
+    #ifdef _WIN32
+        int output_format = _set_output_format(_TWO_DIGIT_EXPONENT);
+    #endif
     // Opening a trajectory file (containing equilibrium geometry as the first
     // entry) and reading equilibrium geometry
     cout << "Reading equilibrium geometry from '" << argv[traj_arg] << "'..."

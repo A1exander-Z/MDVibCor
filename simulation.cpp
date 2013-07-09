@@ -22,6 +22,13 @@
 
 #include "simulation.h"
 
+// MS Visual Studio does not define 'round' function, so we have to provide one
+#ifdef _MSC_VER
+    double round(double d) {
+        return floor(d + 0.5);
+    }
+#endif
+
 // Parameters of function for approximating probability distributions
 class P_dist_par {
 public:
@@ -66,7 +73,7 @@ double V_dist (const gsl_vector *v, void *params) {
 Simulation::Simulation() {
     renumber = NULL;
     dist_eq = dist_ra = dist_rg = dist_eq_ab = NULL;
-    atom_no = tr_size = energy = eq_energy = T = 0;
+    atom_no = tr_size = 0; energy = eq_energy = T = 0;
     abinit = false;
 }
 
@@ -363,7 +370,7 @@ int Simulation::ReadEqGeometry(const char* filename) {
     }
     getline(in_tr, str_in); getline(in_tr, str_in);
     // Reading equilibrium geometry
-    for (unsigned int i = 0; i < atom_no and !in_tr.eof(); i++) {
+    for (unsigned int i = 0; i < atom_no && !in_tr.eof(); i++) {
         istringstream stream_in(str_in);
         string name;
         double x, y, z;         
@@ -425,7 +432,7 @@ int Simulation::ReadAbInitioGeometry(const char* filename) {
     getline(in_ab, str_in); getline(in_ab, str_in); // Skipping one line
     // Reading equilibrium geometry
     unsigned int i;
-    for (i = 0; i < atom_no and !in_ab.eof(); i++) {
+    for (i = 0; i < atom_no && !in_ab.eof(); i++) {
         istringstream stream_in(str_in);
         string name;
         double x, y, z;         
@@ -624,7 +631,7 @@ int Simulation::ReadConformers(const char* filename) {
         if (str_in.find("Equilibrium") != string::npos) {
             str_in = str_in.substr(str_in.find("Equilibrium")+11);
             istringstream stream_in(str_in);
-            double angle, old_angle;
+            double angle, old_angle = 1000;
             stream_in >> angle;  // Reading angle
             while (angle != old_angle) {
                 conf_group->AddEqDih(angle);
@@ -859,7 +866,7 @@ void Simulation::CalcRaRg(unsigned int PI_steps) {
             }
             dist_ra[index] /= PI_steps; dist_rg[index] /= PI_steps;
         }
-    current_conf_ct /= (atom_no*(atom_no-1)/2.0);
+    current_conf_ct /= (int)(atom_no*(atom_no-1)/2.0);
     if (conf_list.size() != 0) {
         cout << "Conformer ";
         for (unsigned int i = 0; i < conf_list.size(); i++) {

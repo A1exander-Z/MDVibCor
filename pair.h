@@ -72,7 +72,7 @@ public:
     void Average();
     void Statistics();
     double GetProb(unsigned int i);
-    double SetProb(unsigned int i, double new_P);
+    void SetProb(unsigned int i, double new_P);
 };
 
 #endif
