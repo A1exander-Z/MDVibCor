@@ -58,7 +58,10 @@ void PrintUsage() {
 // Main program starts here
 int main(int argc, const char* argv[]) {
     clock_t st_time = clock();
-    cout << "MDVibCor version 0.7.1, copyright (C) 2008-2013 Alexander Zakharov";
+    cout << "MDVibCor version 0.8.0, copyright (C) 2008-2013 "
+         << "Alexander Zakharov" << endl
+         << "Multithreaded version, running on a CPU with "
+         << boost::thread::hardware_concurrency() << " cores";
     cout << endl << endl;
     double tolerance = 0.1; // Default maximum allowed difference between
                             // symmetrically equivalent distances (in %)

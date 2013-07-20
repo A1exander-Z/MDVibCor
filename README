@@ -4,9 +4,10 @@ electron diffraction studies using data of molecular dynamics simulations.
 Compiling MDVibCor
 
 The compilation of this program requires a C++ compiler (with STL) and GNU
-Scientific Library (GSL). It was tested using G++ from GCC 4.7 suite under
-Linux and Cygwin. Compilation in Microsoft Visual Studio 2012 is also possible,
-but building GSL under it is a separate story not covered here.
+Scientific Library (GSL). Multithreaded version additionally requires the Boost
+set of libraries. The code was tested using G++ from GCC 4.7 suite under Linux
+and Cygwin. Compilation in Microsoft Visual Studio 2012 is also possible, but
+building GSL under it is a separate story not covered here.
 
 Compiling under Linux or Cygwin
 

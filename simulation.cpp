@@ -797,8 +797,9 @@ void Simulation::ComformationalAnalysis() {
     }
 }
 
-unsigned int Simulation::CalcRaRg(const unsigned int PI_steps, double* dist_ra,
-             double* dist_rg) {
+void Simulation::CalcRaRg(const unsigned int PI_steps,
+     const unsigned int idx_start, const unsigned int idx_end,
+     double* dist_ra, double* dist_rg, unsigned int* pt_count) {
     // Zeroing r_a and r_g distances
     for (unsigned int i = 1; i <= atom_no; i++)
         for (unsigned int j = i+1; j <= atom_no; j++) {
@@ -814,7 +815,8 @@ unsigned int Simulation::CalcRaRg(const unsigned int PI_steps, double* dist_ra,
                 long int sum_ct = 0;
                 double r_ak = 0;
                 double r_gk = 0;
-                for (unsigned int l = 0; l < tr_size/PI_steps; l++) {
+                for (unsigned int l = idx_start/PI_steps;
+                     l < idx_end/PI_steps; l++) {
                     unsigned int idx = l*PI_steps+k;
                     if (CompareConf(idx)) {
                         r_ak += 1.0/CalcTrDist(i-1, j-1, idx);
@@ -823,22 +825,22 @@ unsigned int Simulation::CalcRaRg(const unsigned int PI_steps, double* dist_ra,
                     }
                 }
                 // Averaging
-                dist_ra[index] += 1.0/(r_ak/sum_ct);
-                dist_rg[index] += r_gk/sum_ct;
+                dist_ra[index] += r_ak; dist_rg[index] += r_gk;
                 current_conf_ct += sum_ct;
             }
             dist_ra[index] /= PI_steps; dist_rg[index] /= PI_steps;
         }
-    return current_conf_ct;
+    *pt_count = current_conf_ct/(int)(atom_no*(atom_no-1)/2.0);
 }
 
-unsigned int Simulation::CalcU(const unsigned int PI_steps,
-             const double* dist_rg, double* u, double* a_M, double* kappa) {
+void Simulation::CalcU(const unsigned int PI_steps,
+     const unsigned int idx_start, const unsigned int idx_end,
+     const double* dist_rg, double* u, double* kappa) {
     for (unsigned int i = 1; i <= atom_no; i++)
         for (unsigned int j = i+1; j <= atom_no; j++) {
             int index = (i-1)*atom_no+j-1;
-            // Zeroing amplitudes, Morse and asymmetry constants
-            u[index] = 0; a_M[index] = 0; kappa[index] = 0;
+            // Zeroing amplitudes and asymmetry constants
+            u[index] = 0; kappa[index] = 0;
     }
     for (unsigned int i = 1; i <= atom_no; i++)
         for (unsigned int j = i+1; j <= atom_no; j++) {
@@ -847,7 +849,8 @@ unsigned int Simulation::CalcU(const unsigned int PI_steps,
                 long int sum_ct = 0;
                 double uk = 0;
                 double kk = 0;
-                for (unsigned long int l = 0; l < tr_size/PI_steps; l++) {
+                for (unsigned long int l = idx_start/PI_steps;
+                     l < idx_end/PI_steps; l++) {
                     int idx = l*PI_steps+k;
                     if (CompareConf(idx)) {
                         double x = CalcTrDist(i-1, j-1, idx);
@@ -857,11 +860,9 @@ unsigned int Simulation::CalcU(const unsigned int PI_steps,
                         sum_ct++;
                     }
                 }
-                u[index] += sqrt(uk/sum_ct);
-                kappa[index] += kk/sum_ct/6.0;
+                u[index] += uk; kappa[index] += kk;
             }
             u[index] /= PI_steps; kappa[index] /= PI_steps;
-            a_M[index] = kappa[index]/pow(u[index], 4)*6.0;
         }
 }
 
@@ -869,7 +870,7 @@ unsigned int Simulation::CalcU(const unsigned int PI_steps,
 // average distances, amplitudes, etc.
 void Simulation::Statistics(unsigned int PI_steps) {
     // Creating matrices of internuclear distances, amplitudes, etc.
-    int m_size = atom_no*atom_no;
+    const int m_size = atom_no*atom_no;
     double* dist_eq = new double[m_size];  // Matrix of equilibrium distances
     double* dist_eq_ab = NULL;             // Matrix of ab initio distances
     if (abinit) dist_eq_ab = new double[m_size];
@@ -886,10 +887,48 @@ void Simulation::Statistics(unsigned int PI_steps) {
     // Creating matrices of internuclear distances, amplitudes, etc.
     double* dist_ra = new double[m_size];  // Matrix of r_a distances
     double* dist_rg = new double[m_size];  // Matrix of r-g distances
-
-    unsigned int current_conf_ct = CalcRaRg(PI_steps, dist_ra, dist_rg);
-
-    current_conf_ct /= (int)(atom_no*(atom_no-1)/2.0);
+    // Zeroing r_a and r_g distance matrices
+    for (unsigned int i = 1; i <= atom_no; i++)
+        for (unsigned int j = i+1; j <= atom_no; j++) {
+            int index = (i-1)*atom_no+j-1;
+            dist_ra[index] = 0; dist_rg[index] = 0;
+    }
+    const unsigned int cores = boost::thread::hardware_concurrency();
+    double** dist_ra_t = new double*[cores];
+    double** dist_rg_t = new double*[cores];
+    for (unsigned int i = 0; i < cores; i++) {
+        dist_ra_t[i] = new double[m_size]; dist_rg_t[i] = new double[m_size];
+    }
+    const unsigned int chunk = tr_size/cores;
+    int idx_start = 0;
+    int idx_end = chunk;
+    boost::thread_group threads;
+    unsigned int pt_count[cores];
+    for (unsigned int i = 0; i < cores; i++) {
+        boost::thread* t = new boost::thread(boost::bind(&Simulation::CalcRaRg,
+                           this, PI_steps, idx_start, idx_end, dist_ra_t[i],
+                           dist_rg_t[i], &pt_count[i]));
+        threads.add_thread(t);
+        idx_start += chunk;
+        idx_end = (idx_end+chunk+2 > tr_size) ? tr_size : idx_end+chunk;
+    }
+    threads.join_all();
+    unsigned int current_conf_ct = 0;
+    for (unsigned int i = 0; i < cores; i++) current_conf_ct += pt_count[i];
+    for (unsigned int i = 1; i <= atom_no; i++)
+        for (unsigned int j = i+1; j <= atom_no; j++) {
+            int index = (i-1)*atom_no+j-1;
+            for (unsigned int i = 0; i < cores; i++) {
+                dist_ra[index] += dist_ra_t[i][index];
+                dist_rg[index] += dist_rg_t[i][index];
+            }
+            dist_ra[index] = 1.0/(dist_ra[index]/current_conf_ct);
+            dist_rg[index] /= current_conf_ct;
+        }
+    for (int i = 0; i < cores; i++) {
+        delete[] dist_ra_t[i]; delete[] dist_rg_t[i];
+    }
+    delete[] dist_ra_t; delete[] dist_rg_t;
     if (conf_list.size() != 0) {
         cout << "Conformer ";
         for (unsigned int i = 0; i < conf_list.size(); i++) {
@@ -903,9 +942,43 @@ void Simulation::Statistics(unsigned int PI_steps) {
     double* u = new double[m_size];      // Matrix of r.m.s. amplitudes
     double* a_M = new double[m_size];    // Matrix of Morse constants
     double* kappa = new double[m_size];  // Matrix of asymmetry constants
-
-    CalcU(PI_steps, dist_rg, u, a_M, kappa);
-
+    // Zeroing amplitudes, Morse and asymmetry constant matrices
+    for (unsigned int i = 1; i <= atom_no; i++)
+        for (unsigned int j = i+1; j <= atom_no; j++) {
+            int index = (i-1)*atom_no+j-1;
+            u[index] = 0; a_M[index] = 0; kappa[index] = 0;
+    }
+    double** u_t = new double*[cores];
+    double** kappa_t = new double*[cores];
+    for (unsigned int i = 0; i < cores; i++) {
+        u_t[i] = new double[m_size]; kappa_t[i] = new double[m_size];
+    }
+    idx_start = 0; idx_end = chunk;
+    boost::thread_group threads_u;
+    for (unsigned int i = 0; i < cores; i++) {
+        boost::thread* t = new boost::thread(boost::bind(&Simulation::CalcU,
+                           this, PI_steps, idx_start, idx_end, dist_rg,
+                           u_t[i], kappa_t[i]));
+        threads_u.add_thread(t);
+        idx_start += chunk;
+        idx_end = (idx_end+chunk+2 > tr_size) ? tr_size : idx_end+chunk;
+    }
+    threads_u.join_all();
+    for (unsigned int i = 1; i <= atom_no; i++)
+        for (unsigned int j = i+1; j <= atom_no; j++) {
+            int index = (i-1)*atom_no+j-1;
+            for (unsigned int i = 0; i < cores; i++) {
+                u[index] += u_t[i][index];
+                kappa[index] += kappa_t[i][index];
+            }
+            u[index] = sqrt(u[index]/current_conf_ct);
+            kappa[index] /= (current_conf_ct*6.0);
+            a_M[index] = kappa[index]/pow(u[index], 4)*6.0;
+        }
+    for (int i = 0; i < cores; i++) {
+        delete[] u_t[i]; delete[] kappa_t[i];
+    }
+    delete[] u_t; delete[] kappa_t;
     // Merging symmetrically equivalent internuclear distances
     const double* dist_eq_ptr = abinit ? dist_eq_ab: dist_eq;
     for (unsigned int i = 1; i <= atom_no; i++)
@@ -972,7 +1045,7 @@ void Simulation::Statistics(unsigned int PI_steps) {
 void Simulation::CalcProbabilities(bool print_P, bool debug) {
     cout << "Calculating probability distributions..." << endl << endl;
     for (unsigned int i = 0; i < pair_list.size(); i++) {
-        if (print_P || debug) cout << "Group " << i+1 << endl << endl;
+        if (print_P && debug) cout << "Group " << i+1 << endl << endl;
         if (print_P && debug) cout << "Looking for the boundaries..."  << endl;
         PairGroup* pair = pair_list[i];
         double min = 0;

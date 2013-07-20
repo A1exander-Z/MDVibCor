@@ -4,7 +4,7 @@ CPP = g++
 
 CFLAGS=-c -O2 -Werror
 
-LDFLAGS=-lgsl -lgslcblas
+LDFLAGS=-lboost_system -lboost_thread -lgsl -lgslcblas
 
 PROGRAM = mdvibcor
 

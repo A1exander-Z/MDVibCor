@@ -12,6 +12,7 @@
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_multimin.h>
+#include <boost/thread.hpp>
 #include "atom.h"
 #include "pair.h"
 #include "geometry.h"
@@ -61,10 +62,12 @@ class Simulation {
     int CheckRotation(int step);
     int GetConformerNo(ConfGroup* conf_group, double* angle);
     void CheckConformer(int step, double* angle, int* conformation);
-    unsigned int CalcRaRg(const unsigned int PI_steps, double* dist_ra,
-                 double* dist_rg);
-    unsigned int CalcU(const unsigned int PI_steps, const double* dist_rg,
-                 double* u, double* a_M, double* kappa);
+    void CalcRaRg(const unsigned int PI_steps,
+         const unsigned int idx_start, const unsigned int idx_end,
+         double* dist_ra, double* dist_rg, unsigned int* pt_count);
+    void CalcU(const unsigned int PI_steps,
+         const unsigned int idx_start, const unsigned int idx_end,
+         const double* dist_rg, double* u, double* kappa);
 public:
     Simulation();
     ~Simulation();
