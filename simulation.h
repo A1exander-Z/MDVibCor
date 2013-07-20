@@ -48,13 +48,6 @@ class Simulation {
     long int conf_dist[360];          // Conformer distribution over angle
     vector< vector<double> > rot_equil;    // Equilibrium values of dihedrals
     vector<PairGroup*> pair_list;     // List of groups of equiv. atomic pairs
-    double* dist_eq;    // Matrix of distances at the equilibrium geometry
-    double* dist_eq_ab; // Matrix of distances at the ab initio eq. geometry
-    double* dist_ra;    // Matrix of r_a distances
-    double* dist_rg;    // Matrix of r_g distances
-    double* u;          // Matrix of r.m.s. amplitudes
-    double* a_M;        // Matrix of Morse constants
-    double* kappa;      // Matrix of asymmetry constants
     double tolerance;   // Tolerance for symmetrically eqivalent distances
     bool abinit;        // Is ab initio geometry present?
     int chosen_conf[CONF_NO];
@@ -63,10 +56,12 @@ class Simulation {
     double CalcAbInitEqDist(int i, int j);
     double CalcTrDist(int i, int j, int k);
     bool EquivalentAtoms(int no_1, int no_2);
-    bool EquivalentDistances(int no_1, int no_2);
+    bool EquivalentDistances(const int no_1, const int no_2,
+                             const double* dist_eq);
     int CheckRotation(int step);
     int GetConformerNo(ConfGroup* conf_group, double* angle);
     void CheckConformer(int step, double* angle, int* conformation);
+    void CalcRaRg(unsigned int PI_steps);
 public:
     Simulation();
     ~Simulation();
@@ -86,7 +81,7 @@ public:
     int ReadTrajectory(const char* filename, int skip, unsigned int* PI_steps);
     unsigned long int GetTrajectorySize();
     void ComformationalAnalysis();
-    void CalcRaRg(unsigned int PI_steps);
+    void Statistics(unsigned int PI_steps);
     void CalcProbabilities(bool print_P, bool debug);
     bool CompareConf(int step);
     void PrintGroups();

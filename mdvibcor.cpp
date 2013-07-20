@@ -249,7 +249,7 @@ int main(int argc, const char* argv[]) {
     cout << "Elapsed time: " << (clock()-st_time)/CLOCKS_PER_SEC
          << " s" << endl;
     // Computing thermal-average distances, etc.
-    sim.CalcRaRg(PI_steps);
+    sim.Statistics(PI_steps);
     cout << "Elapsed time: " << (clock()-st_time)/CLOCKS_PER_SEC
          << " s" << endl;
     // Printing the results

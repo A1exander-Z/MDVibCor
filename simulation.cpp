@@ -72,7 +72,6 @@ double V_dist (const gsl_vector *v, void *params) {
 
 Simulation::Simulation() {
     renumber = NULL;
-    dist_eq = dist_ra = dist_rg = dist_eq_ab = NULL;
     atom_no = tr_size = 0; energy = eq_energy = T = 0;
     abinit = false;
 }
@@ -89,20 +88,6 @@ Simulation::~Simulation() {
     if (!renumber) {
         delete[] renumber; renumber = NULL;
     }
-    if (!dist_eq) {
-        delete[] dist_eq; dist_eq = NULL;
-    }
-    if (!dist_ra) {
-        delete[] dist_ra; dist_ra = NULL;
-    }
-    if (!dist_rg) {
-        delete[] dist_rg; dist_rg = NULL;
-    }
-    if (abinit && !dist_eq_ab) {
-        delete[] dist_eq_ab; dist_eq_ab = NULL;
-    }
-    delete[] u; u = NULL; delete[] a_M; a_M = NULL;
-    delete[] kappa; kappa = NULL;
     for (unsigned int i = 0; i < pair_list.size(); i++) {
         delete pair_list[i]; pair_list[i] = NULL;
     }
@@ -149,16 +134,10 @@ bool Simulation::EquivalentAtoms(int no_1, int no_2) {
 
 // Function to check the equivalence of two distances using equilibrium
 // geometry (MD or ab initio)
-bool Simulation::EquivalentDistances(int no_1, int no_2) {
-    double diff;
-    if (abinit) {  // Ab initio geometry present
-        diff = fabs(dist_eq_ab[no_1]-dist_eq_ab[no_2]);
-        return(diff <= dist_eq_ab[no_1]*(tolerance/100.0) ? true : false);
-    }
-    else {         // MD geometry
-        diff = fabs(dist_eq[no_1]-dist_eq[no_2]);
-        return(diff <= dist_eq[no_1]*(tolerance/100.0) ? true : false);
-    }
+bool Simulation::EquivalentDistances(const int no_1,const  int no_2,
+                                     const double* dist_eq) {
+    double diff = fabs(dist_eq[no_1]-dist_eq[no_2]);
+    return(diff <= dist_eq[no_1]*(tolerance/100.0) ? true : false);
 }
 
 // Function to get the number of conformer in its group of conformers
@@ -818,30 +797,35 @@ void Simulation::ComformationalAnalysis() {
     }
 }
 
-// Function for calculating average distances, amplitudes, etc.
-void Simulation::CalcRaRg(unsigned int PI_steps) {
+void Simulation::CalcRaRg(unsigned int PI_steps) {}
+
+// Function for calculating all statistical properties - 
+// average distances, amplitudes, etc.
+void Simulation::Statistics(unsigned int PI_steps) {
     // Creating matrices of internuclear distances, amplitudes, etc.
-    dist_eq = new double[atom_no*atom_no];         // Equilibrium distances
-    if (abinit)
-        dist_eq_ab = new double[atom_no*atom_no];  // Ab initio distances
-    dist_ra = new double[atom_no*atom_no];         // r_a distances
-    dist_rg = new double[atom_no*atom_no];         // r-g distances
-    u = new double[atom_no*atom_no];               // r.m.s. amplitudes
-    a_M = new double[atom_no*atom_no];             // Morse constants
-    kappa = new double[atom_no*atom_no];           // asymmetry constants
+    int m_size = atom_no*atom_no;
+    double* dist_eq = new double[m_size];         // Equilibrium distance       s
+    double* dist_eq_ab = NULL;
+    if (abinit) dist_eq_ab = new double[m_size];  // Ab initio distances
     // Initialising internuclear distances, amplitudes, etc.
     for (unsigned int i = 1; i <= atom_no; i++)
         for (unsigned int j = i+1; j <= atom_no; j++) {
             int index = (i-1)*atom_no+j-1;
-            // Zeroing r_a, r_g, amplitudes, Morse and asymmetry constants
-            dist_ra[index] = 0; dist_rg[index] = 0; u[index] = 0;
-            a_M[index] = 0; kappa[index] = 0;
             // Calculating equlibrium internuclear distances
             dist_eq[index] = CalcEqDist(i-1, j-1);
             if (abinit) dist_eq_ab[index] = CalcAbInitEqDist(i-1, j-1);
         }
     cout << "Calculating average internuclear distances and amplitudes..."
          << endl << endl;
+    // Creating matrices of internuclear distances, amplitudes, etc.
+    double* dist_ra = new double[m_size];  // Matrix of r_a distances
+    double* dist_rg = new double[m_size];  // Matrix of r-g distances
+    // Zeroing r_a and r_g distances
+    for (unsigned int i = 1; i <= atom_no; i++)
+        for (unsigned int j = i+1; j <= atom_no; j++) {
+            int index = (i-1)*atom_no+j-1;
+            dist_ra[index] = 0; dist_rg[index] = 0;
+    }
     unsigned int current_conf_ct = 0;
     for (unsigned int i = 1; i <= atom_no; i++)
         for (unsigned int j = i+1; j <= atom_no; j++) {
@@ -876,6 +860,16 @@ void Simulation::CalcRaRg(unsigned int PI_steps) {
              << tr_size << endl << endl;
     }
     // Calculating amplitudes
+    // Creating matrices of internuclear distances, amplitudes, etc.
+    double* u = new double[m_size];      // Matrix of r.m.s. amplitudes
+    double* a_M = new double[m_size];    // Matrix of Morse constants
+    double* kappa = new double[m_size];  // Matrix of asymmetry constants
+    for (unsigned int i = 1; i <= atom_no; i++)
+        for (unsigned int j = i+1; j <= atom_no; j++) {
+            int index = (i-1)*atom_no+j-1;
+            // Zeroing amplitudes, Morse and asymmetry constants
+            u[index] = 0; a_M[index] = 0; kappa[index] = 0;
+    }
     for (unsigned int i = 1; i <= atom_no; i++)
         for (unsigned int j = i+1; j <= atom_no; j++) {
             int index = (i-1)*atom_no+j-1;
@@ -900,6 +894,7 @@ void Simulation::CalcRaRg(unsigned int PI_steps) {
             a_M[index] = kappa[index]/pow(u[index], 4)*6.0;
         }
     // Merging symmetrically equivalent internuclear distances
+    const double* dist_eq_ptr = abinit ? dist_eq_ab: dist_eq;
     for (unsigned int i = 1; i <= atom_no; i++)
         for (unsigned int j = i+1; j <= atom_no; j++) {
             // Check if the equivalent pair is in the list
@@ -913,7 +908,7 @@ void Simulation::CalcRaRg(unsigned int PI_steps) {
                     int index_1 = (i-1)*atom_no+j-1;
                     int index_2 = (pair_list[k]->GetEqI(0)-1)*atom_no+
                                   pair_list[k]->GetEqJ(0)-1;
-                    if (EquivalentDistances(index_1, index_2))
+                    if (EquivalentDistances(index_1, index_2, dist_eq_ptr))
                         equivalent_pair = true;
                 }
                 // If a group of equiv. atomic pairs is present, add data to it
@@ -955,6 +950,10 @@ void Simulation::CalcRaRg(unsigned int PI_steps) {
     // Standard deviations
     for (unsigned int i = 0; i < pair_list.size(); i++)
         pair_list[i]->Statistics();
+    // Cleaning memory
+    if (dist_eq_ab) delete[] dist_eq_ab;
+    delete dist_eq; delete[] dist_rg; delete[] dist_ra;
+    delete[] u; delete[] a_M; delete[] kappa;
 }
 
 void Simulation::CalcProbabilities(bool print_P, bool debug) {
