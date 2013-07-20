@@ -797,29 +797,8 @@ void Simulation::ComformationalAnalysis() {
     }
 }
 
-void Simulation::CalcRaRg(unsigned int PI_steps) {}
-
-// Function for calculating all statistical properties - 
-// average distances, amplitudes, etc.
-void Simulation::Statistics(unsigned int PI_steps) {
-    // Creating matrices of internuclear distances, amplitudes, etc.
-    int m_size = atom_no*atom_no;
-    double* dist_eq = new double[m_size];         // Equilibrium distance       s
-    double* dist_eq_ab = NULL;
-    if (abinit) dist_eq_ab = new double[m_size];  // Ab initio distances
-    // Initialising internuclear distances, amplitudes, etc.
-    for (unsigned int i = 1; i <= atom_no; i++)
-        for (unsigned int j = i+1; j <= atom_no; j++) {
-            int index = (i-1)*atom_no+j-1;
-            // Calculating equlibrium internuclear distances
-            dist_eq[index] = CalcEqDist(i-1, j-1);
-            if (abinit) dist_eq_ab[index] = CalcAbInitEqDist(i-1, j-1);
-        }
-    cout << "Calculating average internuclear distances and amplitudes..."
-         << endl << endl;
-    // Creating matrices of internuclear distances, amplitudes, etc.
-    double* dist_ra = new double[m_size];  // Matrix of r_a distances
-    double* dist_rg = new double[m_size];  // Matrix of r-g distances
+unsigned int Simulation::CalcRaRg(const unsigned int PI_steps, double* dist_ra,
+             double* dist_rg) {
     // Zeroing r_a and r_g distances
     for (unsigned int i = 1; i <= atom_no; i++)
         for (unsigned int j = i+1; j <= atom_no; j++) {
@@ -850,20 +829,11 @@ void Simulation::Statistics(unsigned int PI_steps) {
             }
             dist_ra[index] /= PI_steps; dist_rg[index] /= PI_steps;
         }
-    current_conf_ct /= (int)(atom_no*(atom_no-1)/2.0);
-    if (conf_list.size() != 0) {
-        cout << "Conformer ";
-        for (unsigned int i = 0; i < conf_list.size(); i++) {
-            cout << chosen_conf[i]+1; if (i != conf_list.size()-1) cout << "-";
-        }
-        cout << " is present in " << current_conf_ct << " MD steps of "
-             << tr_size << endl << endl;
-    }
-    // Calculating amplitudes
-    // Creating matrices of internuclear distances, amplitudes, etc.
-    double* u = new double[m_size];      // Matrix of r.m.s. amplitudes
-    double* a_M = new double[m_size];    // Matrix of Morse constants
-    double* kappa = new double[m_size];  // Matrix of asymmetry constants
+    return current_conf_ct;
+}
+
+unsigned int Simulation::CalcU(const unsigned int PI_steps,
+             const double* dist_rg, double* u, double* a_M, double* kappa) {
     for (unsigned int i = 1; i <= atom_no; i++)
         for (unsigned int j = i+1; j <= atom_no; j++) {
             int index = (i-1)*atom_no+j-1;
@@ -893,6 +863,49 @@ void Simulation::Statistics(unsigned int PI_steps) {
             u[index] /= PI_steps; kappa[index] /= PI_steps;
             a_M[index] = kappa[index]/pow(u[index], 4)*6.0;
         }
+}
+
+// Function for calculating all statistical properties - 
+// average distances, amplitudes, etc.
+void Simulation::Statistics(unsigned int PI_steps) {
+    // Creating matrices of internuclear distances, amplitudes, etc.
+    int m_size = atom_no*atom_no;
+    double* dist_eq = new double[m_size];  // Matrix of equilibrium distances
+    double* dist_eq_ab = NULL;             // Matrix of ab initio distances
+    if (abinit) dist_eq_ab = new double[m_size];
+    // Initialising internuclear distances, amplitudes, etc.
+    for (unsigned int i = 1; i <= atom_no; i++)
+        for (unsigned int j = i+1; j <= atom_no; j++) {
+            int index = (i-1)*atom_no+j-1;
+            // Calculating equlibrium internuclear distances
+            dist_eq[index] = CalcEqDist(i-1, j-1);
+            if (abinit) dist_eq_ab[index] = CalcAbInitEqDist(i-1, j-1);
+        }
+    cout << "Calculating average internuclear distances and amplitudes..."
+         << endl << endl;
+    // Creating matrices of internuclear distances, amplitudes, etc.
+    double* dist_ra = new double[m_size];  // Matrix of r_a distances
+    double* dist_rg = new double[m_size];  // Matrix of r-g distances
+
+    unsigned int current_conf_ct = CalcRaRg(PI_steps, dist_ra, dist_rg);
+
+    current_conf_ct /= (int)(atom_no*(atom_no-1)/2.0);
+    if (conf_list.size() != 0) {
+        cout << "Conformer ";
+        for (unsigned int i = 0; i < conf_list.size(); i++) {
+            cout << chosen_conf[i]+1; if (i != conf_list.size()-1) cout << "-";
+        }
+        cout << " is present in " << current_conf_ct << " MD steps of "
+             << tr_size << endl << endl;
+    }
+    // Calculating amplitudes
+    // Creating matrices of internuclear distances, amplitudes, etc.
+    double* u = new double[m_size];      // Matrix of r.m.s. amplitudes
+    double* a_M = new double[m_size];    // Matrix of Morse constants
+    double* kappa = new double[m_size];  // Matrix of asymmetry constants
+
+    CalcU(PI_steps, dist_rg, u, a_M, kappa);
+
     // Merging symmetrically equivalent internuclear distances
     const double* dist_eq_ptr = abinit ? dist_eq_ab: dist_eq;
     for (unsigned int i = 1; i <= atom_no; i++)

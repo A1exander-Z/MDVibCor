@@ -61,7 +61,10 @@ class Simulation {
     int CheckRotation(int step);
     int GetConformerNo(ConfGroup* conf_group, double* angle);
     void CheckConformer(int step, double* angle, int* conformation);
-    void CalcRaRg(unsigned int PI_steps);
+    unsigned int CalcRaRg(const unsigned int PI_steps, double* dist_ra,
+                 double* dist_rg);
+    unsigned int CalcU(const unsigned int PI_steps, const double* dist_rg,
+                 double* u, double* a_M, double* kappa);
 public:
     Simulation();
     ~Simulation();
