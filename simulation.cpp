@@ -85,7 +85,7 @@ Simulation::~Simulation() {
         delete conf_list[i]; conf_list[i] = NULL;
     }
     conf_list.clear();
-    if (!renumber) {
+    if (renumber != 0) {
         delete[] renumber; renumber = NULL;
     }
     for (unsigned int i = 0; i < pair_list.size(); i++) {
@@ -965,7 +965,7 @@ void Simulation::Statistics(unsigned int PI_steps) {
         pair_list[i]->Statistics();
     // Cleaning memory
     if (dist_eq_ab) delete[] dist_eq_ab;
-    delete dist_eq; delete[] dist_rg; delete[] dist_ra;
+    delete[] dist_eq; delete[] dist_rg; delete[] dist_ra;
     delete[] u; delete[] a_M; delete[] kappa;
 }
 
