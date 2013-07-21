@@ -20,6 +20,7 @@
 using namespace std;
 
 const unsigned int CONF_NO = 10;  // Maximum number of conformers
+const unsigned int ANGLE = 360;   // Angle granularity
 
 // Class describing a group of different conformers defined by dihedral
 class ConfGroup {
@@ -46,17 +47,17 @@ class Simulation {
     vector<ConfGroup*> conf_list;     // List of conformer groups
     vector<int*> conformer;           // Number of conformer in given MD step
     vector< vector<int> > internals_list;  // List of internal coordinates
-    long int conf_dist[360];          // Conformer distribution over angle
+    long int conf_dist[ANGLE];        // Conformer distribution over angle
     vector< vector<double> > rot_equil;    // Equilibrium values of dihedrals
     vector<PairGroup*> pair_list;     // List of groups of equiv. atomic pairs
     double tolerance;   // Tolerance for symmetrically eqivalent distances
     bool abinit;        // Is ab initio geometry present?
     int chosen_conf[CONF_NO];
     double energy, eq_energy, T;
-    double CalcEqDist(int i, int j);
-    double CalcAbInitEqDist(int i, int j);
-    double CalcTrDist(int i, int j, int k);
-    bool EquivalentAtoms(int no_1, int no_2);
+    const double CalcEqDist(int i, int j);
+    const double CalcAbInitEqDist(int i, int j);
+    const double CalcTrDist(int i, int j, int k);
+    const bool EquivalentAtoms(int no_1, int no_2);
     bool EquivalentDistances(const int no_1, const int no_2,
                              const double* dist_eq);
     int CheckRotation(int step);
@@ -85,11 +86,11 @@ public:
     int ReadConformers(const char* filename);
         int ReadInternals(const char* filename);
     int ReadTrajectory(const char* filename, int skip, unsigned int* PI_steps);
-    unsigned long int GetTrajectorySize();
+    const unsigned long int GetTrajectorySize();
     void ComformationalAnalysis();
-    void Statistics(unsigned int PI_steps);
-    void CalcProbabilities(bool print_P, bool debug);
-    bool CompareConf(int step);
+    void Statistics(const unsigned int PI_steps);
+    void CalcProbabilities(const bool print_P, const bool debug);
+    bool CompareConf(const int step);
     void PrintGroups();
     void PrintEDatED();
     void PrintKCED();

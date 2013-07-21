@@ -85,7 +85,7 @@ Simulation::~Simulation() {
         delete conf_list[i]; conf_list[i] = NULL;
     }
     conf_list.clear();
-    if (!renumber) {
+    if (renumber != NULL) {
         delete[] renumber; renumber = NULL;
     }
     for (unsigned int i = 0; i < pair_list.size(); i++) {
@@ -103,24 +103,24 @@ void Simulation::SetTolerance(double new_tol) {
 }
 
 // Function to calculate equilibrium internuclear distance between i, j pair
-double Simulation::CalcEqDist(int i, int j) {
+const double Simulation::CalcEqDist(int i, int j) {
     return(atom_list[i]->GetEqDist(atom_list[j]));
 }
 
 // Function to calculate ab initio equilibrium
 // internuclear distance between i, j pair
-double Simulation::CalcAbInitEqDist(int i, int j) {
+const double Simulation::CalcAbInitEqDist(int i, int j) {
     return(atom_list[i]->GetAbinitEqDist(atom_list[j]));
 }
 
 // Function to calculate internuclear distance between i, j pair at
 // kth step of the MD trajectory
-double Simulation::CalcTrDist(int i, int j, int k) {
+const double Simulation::CalcTrDist(int i, int j, int k) {
     return(atom_list[i]->GetDist(k, atom_list[j]));
 }
 
 // Function to check equivalence of two atoms using the equivalence table
-bool Simulation::EquivalentAtoms(int no_1, int no_2) {
+const bool Simulation::EquivalentAtoms(int no_1, int no_2) {
     for (unsigned i = 0; i < eq_list.size(); i++)        // Cycle over rows
         for (unsigned j = 0; j < eq_list[i].size(); j++) // Search in ith row
             if (no_1 == eq_list[i][j])
@@ -776,7 +776,7 @@ int Simulation::ReadTrajectory(const char* filename, int skip,
     energy /= tr_size_this; return(tr_size_this);
 }
 
-unsigned long int Simulation::GetTrajectorySize() {
+const unsigned long int Simulation::GetTrajectorySize() {
     return(tr_size);
 }
 
@@ -868,7 +868,7 @@ void Simulation::CalcU(const unsigned int PI_steps,
 
 // Function for calculating all statistical properties - 
 // average distances, amplitudes, etc.
-void Simulation::Statistics(unsigned int PI_steps) {
+void Simulation::Statistics(const unsigned int PI_steps) {
     // Creating matrices of internuclear distances, amplitudes, etc.
     const int m_size = atom_no*atom_no;
     double* dist_eq = new double[m_size];  // Matrix of equilibrium distances
@@ -899,6 +899,7 @@ void Simulation::Statistics(unsigned int PI_steps) {
     for (unsigned int i = 0; i < cores; i++) {
         dist_ra_t[i] = new double[m_size]; dist_rg_t[i] = new double[m_size];
     }
+    clock_t start_time = clock();  //FIXME This is for profiling only
     const unsigned int chunk = tr_size/cores;
     int idx_start = 0;
     int idx_end = chunk;
@@ -913,6 +914,8 @@ void Simulation::Statistics(unsigned int PI_steps) {
         idx_end = (idx_end+chunk+2 > tr_size) ? tr_size : idx_end+chunk;
     }
     threads.join_all();
+    //FIXME This is for profiling only
+//    cout << (clock()-start_time)/1e6 << endl;
     unsigned int current_conf_ct = 0;
     for (unsigned int i = 0; i < cores; i++) current_conf_ct += pt_count[i];
     for (unsigned int i = 1; i <= atom_no; i++)
@@ -979,6 +982,8 @@ void Simulation::Statistics(unsigned int PI_steps) {
         delete[] u_t[i]; delete[] kappa_t[i];
     }
     delete[] u_t; delete[] kappa_t;
+    //FIXME This is for profiling only
+//    cout << (clock()-start_time)/1e6 << endl;
     // Merging symmetrically equivalent internuclear distances
     const double* dist_eq_ptr = abinit ? dist_eq_ab: dist_eq;
     for (unsigned int i = 1; i <= atom_no; i++)
@@ -1038,11 +1043,11 @@ void Simulation::Statistics(unsigned int PI_steps) {
         pair_list[i]->Statistics();
     // Cleaning memory
     if (dist_eq_ab) delete[] dist_eq_ab;
-    delete dist_eq; delete[] dist_rg; delete[] dist_ra;
+    delete[] dist_eq; delete[] dist_rg; delete[] dist_ra;
     delete[] u; delete[] a_M; delete[] kappa;
 }
 
-void Simulation::CalcProbabilities(bool print_P, bool debug) {
+void Simulation::CalcProbabilities(const bool print_P, const bool debug) {
     cout << "Calculating probability distributions..." << endl << endl;
     for (unsigned int i = 0; i < pair_list.size(); i++) {
         if (print_P && debug) cout << "Group " << i+1 << endl << endl;
