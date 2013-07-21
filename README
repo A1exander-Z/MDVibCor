@@ -1,12 +1,14 @@
-MDVibCor is a program for computing vibrational corrections for gas-phase
-electron diffraction studies using data of molecular dynamics simulations.
+MDVibCor is a program for computing vibrational corrections for
+gas-phase electron diffraction studies using data of molecular
+dynamics simulations.
 
 Compiling MDVibCor
 
-The compilation of this program requires a C++ compiler (with STL) and GNU
-Scientific Library (GSL). It was tested using G++ from GCC 4.7 suite under
-Linux and Cygwin. Compilation in Microsoft Visual Studio 2012 is also possible,
-but building GSL under it is a separate story not covered here.
+The compilation of this program requires a C++ compiler (with
+STL) and GNU Scientific Library (GSL). It was tested using G++
+from GCC 4.7 suite under Linux and Cygwin. Compilation in
+Microsoft Visual Studio 2012 is also possible, but building GSL
+under it is a separate story not covered here.
 
 Compiling under Linux or Cygwin
 
@@ -14,9 +16,9 @@ Simply run 'make' in the directory containing the source code.
 
 Compiling in Microsoft Visual Studio
 
-Create a new C++ console application project, add source and header files. Make
-GSL headers and libraries available for the project and build the program.
-Wrong path to the GSL headers will prevent 'simulation.cpp' source file from
-compiling and incorrect path lo the GSL library files will cause linkage
-errors.
+Create a new C++ console application project, add source and
+header files. Make GSL headers and libraries available for the
+project and build the program. Wrong path to the GSL headers will
+prevent 'simulation.cpp' source file from compiling and incorrect
+path lo the GSL library files will cause linkage errors.
 
